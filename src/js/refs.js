@@ -1,4 +1,4 @@
 export default {
-    countrySearch: document.querySelector('.country-search'),
-    resultContainer: document.querySelector('.result'),
+    formSearch: document.querySelector('.search-form'),
+    resultContainer: document.querySelector('.gallery'),
 }

@@ -1,56 +1,71 @@
-import debounce from "lodash.debounce"
-
-import '@pnotify/core/dist/PNotify.css';
-import '@pnotify/core/dist/BrightTheme.css';
-import { error } from '@pnotify/core';
-
-//import "../sass/main.scss";
-
-import countryList from "../templates/countries-list.hbs"
-import countryCard from "../templates/country-card.hbs"
+import imageCard from "../templates/image-card.hbs"
+import loadButton from "../templates/button.hbs"
 
 import refs from "./refs"
-import fetchCountries from "./fetchCountries";
+import ApiService from "./apiService";
+import LoadMoreBtn from "./components/load-more-button.js"
+import onAlert from "./components/notification.js"
 
+refs.resultContainer.insertAdjacentHTML("afterend", loadButton());
+const loadMoreBtn = new LoadMoreBtn({
+    selector: '[data-action="load-more"]',
+    hidden: true,
+});
 
-refs.countrySearch.addEventListener("input", debounce(onSearch, 500));
+const apiService = new ApiService();
+
+refs.formSearch.addEventListener("submit", onSearch);
+loadMoreBtn.refs.button.addEventListener("click", fetchImages);
 
 function onSearch(e) {
-    const countryName = e.target.value.trim();
-    if (countryName.length > 0) {
-        fetchCountries(countryName)
-            .then(renderCountry)
-            .catch(onFetchError);
-    } else {
-        clear()
-    };
-};
+    e.preventDefault();
 
-function renderCountry(country) {
-    if (country.status === 404) {
-        clear();
-        onFetchError("Country not found. Please enter a correct query!");
-    } else {
-        if (country.length === 1) {
-            refs.resultContainer.innerHTML = countryCard(country);
-        } else {
-            if (country.length < 11) {
-                refs.resultContainer.innerHTML = countryList(country);
-            } else {
-                clear();
-                onFetchError("Too many matches found. Please enter a more specific query!");
-            }
-        }
+    apiService.query = e.currentTarget.elements.query.value.trim();
+
+    if (apiService.query === '') {
+        clearContainer();
+        loadMoreBtn.hide();
+        return onAlert("Query is empty. Please enter a correct query!");
     }
+
+    loadMoreBtn.show();
+    clearContainer();
+    apiService.resetPage();
+    fetchImages();
 }
 
-function onFetchError(message) {
-    error({
-        text: `${message}`,
-        delay: 2500,
+function fetchImages() {
+    loadMoreBtn.disable();
+    apiService.fetchImages()
+        .then(images => {
+            renderImages(images);
+            loadMoreBtn.enable();
+        }).catch(error => {
+            onAlert(error.message)
+            loadMoreBtn.hide();
+        });
+
+}
+
+function renderImages(images) {
+
+    if (images.length === 0 && apiService.page === 2) {
+        loadMoreBtn.hide();
+        return onAlert("Images not found. Please enter a correct query");
+    }
+
+    if (images.length === 0) {
+        loadMoreBtn.hide();
+        return onAlert("Show all images on you query");
+    }
+
+    refs.resultContainer.insertAdjacentHTML("beforeend", imageCard(images));
+    loadMoreBtn.refs.button.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
     });
 }
 
-function clear() {
+function clearContainer() {
     refs.resultContainer.innerHTML = "";
 }
